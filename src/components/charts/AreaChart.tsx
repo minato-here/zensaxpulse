@@ -73,11 +73,27 @@ export const AreaChart: React.FC<AreaChartProps> = ({
   const hoveredPoint = hoverIndex !== null ? points[hoverIndex] : null;
 
   return (
-    <div className="area-chart-container" style={{ position: "relative", width: "100%" }}>
+    <div
+      className="area-chart-container"
+      style={{
+        position: "relative",
+        width: "100%",
+        height: `${height}px`,
+        display: "block",
+        overflow: "hidden",
+        borderRadius: "8px",
+      }}
+    >
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="chart-svg"
-        style={{ width: "100%", height: `${height}px`, overflow: "visible" }}
+        className="area-chart-svg"
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          display: "block",
+          overflow: "hidden",
+        }}
         onMouseLeave={() => setHoverIndex(null)}
       >
         <defs>

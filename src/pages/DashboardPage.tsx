@@ -6,8 +6,11 @@ import {
   HardDrive,
   ArrowDownCircle,
   ArrowUpCircle,
-  Radio,
   CheckCircle2,
+  XCircle,
+  Wifi,
+  WifiOff,
+  EthernetPort,
 } from "lucide-react";
 import type { SystemOverview, PageId } from "../types/telemetry";
 import { MetricCard } from "../components/cards/MetricCard";
@@ -50,6 +53,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
   const downRate = formatBytesRate(overview?.netRxSpeedBytesSec ?? 0);
   const upRate = formatBytesRate(overview?.netTxSpeedBytesSec ?? 0);
+
+  const isOnline = overview?.isConnected ?? false;
+  const isEthernet =
+    overview?.connectionType?.toLowerCase().includes("ethernet") ?? false;
+  const ifaceName =
+    overview?.activeInterface && overview.activeInterface !== "None"
+      ? overview.activeInterface
+      : "No Interface";
+  const ipDisplay = overview?.activeIp ? `IP: ${overview.activeIp}` : "No IP Assigned";
 
   return (
     <div className="dashboard-content">
@@ -163,21 +175,39 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         {/* 5. Download Speed */}
         <MetricCard
           label="Download"
-          value={downRate.value}
-          unit={downRate.unit}
-          detail={`Interface ${overview?.activeInterface ?? "wlp4s0"} · RX throughput`}
-          icon={<ArrowDownCircle size={20} />}
-          color="var(--accent, #22c55e)"
+          value={isOnline ? downRate.value : "0.0"}
+          unit={isOnline ? downRate.unit : "KB/s"}
+          detail={
+            isOnline
+              ? `${overview?.connectionType ?? "Connected"} (${ifaceName}) · ${ipDisplay}`
+              : "No active network connection (Offline)"
+          }
+          icon={
+            isEthernet ? (
+              <EthernetPort size={20} />
+            ) : isOnline ? (
+              <ArrowDownCircle size={20} />
+            ) : (
+              <WifiOff size={20} />
+            )
+          }
+          color={isOnline ? "var(--accent, #22c55e)" : "var(--text-muted)"}
+          badge={isOnline ? (overview?.activeIp ?? overview?.connectionType ?? "Online") : "Offline"}
         />
 
         {/* 6. Upload Speed */}
         <MetricCard
           label="Upload"
-          value={upRate.value}
-          unit={upRate.unit}
-          detail={`Interface ${overview?.activeInterface ?? "wlp4s0"} · TX throughput`}
+          value={isOnline ? upRate.value : "0.0"}
+          unit={isOnline ? upRate.unit : "KB/s"}
+          detail={
+            isOnline
+              ? `${overview?.connectionType ?? "Connected"} (${ifaceName}) · TX throughput`
+              : "Cable unplugged or WiFi disconnected"
+          }
           icon={<ArrowUpCircle size={20} />}
-          color="var(--security-blue, #38bdf8)"
+          color={isOnline ? "var(--security-blue, #38bdf8)" : "var(--text-muted)"}
+          badge={isOnline ? (overview?.connectionType ?? "Online") : "Disconnected"}
         />
       </section>
 
@@ -192,11 +222,39 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span className="badge-chip" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <Radio size={11} className="spin-slow" />
-                {overview?.activeInterface ?? "wlp4s0"}
+              <span
+                className="badge-chip"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  color: isOnline ? "var(--text-primary)" : "var(--text-muted)",
+                }}
+              >
+                {isOnline ? (
+                  isEthernet ? (
+                    <EthernetPort size={13} style={{ color: "var(--security-blue)" }} />
+                  ) : (
+                    <Wifi size={13} style={{ color: "var(--accent)" }} />
+                  )
+                ) : (
+                  <WifiOff size={13} style={{ color: "#ef4444" }} />
+                )}
+                <span>
+                  {isOnline
+                    ? `${overview?.connectionType} (${ifaceName}) · ${overview?.activeIp ?? "Dynamic IP"}`
+                    : "Network Offline (Disconnected)"}
+                </span>
               </span>
-              <span className="section-tag">LIVE</span>
+              <span
+                className="section-tag"
+                style={{
+                  background: isOnline ? undefined : "rgba(239,68,68,0.15)",
+                  color: isOnline ? undefined : "#ef4444",
+                }}
+              >
+                {isOnline ? "LIVE" : "OFFLINE"}
+              </span>
             </div>
           </div>
 
@@ -226,8 +284,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <span className="cpu-dot" style={{ width: "8px", height: "8px", borderRadius: "50%" }} />
                 Current Download (RX)
               </span>
-              <strong style={{ fontSize: "20px", color: "var(--accent)", letterSpacing: "-0.5px" }}>
-                {downRate.value} <span style={{ fontSize: "13px", fontWeight: 500 }}>{downRate.unit}</span>
+              <strong style={{ fontSize: "20px", color: isOnline ? "var(--accent)" : "var(--text-muted)", letterSpacing: "-0.5px" }}>
+                {isOnline ? downRate.value : "0.0"} <span style={{ fontSize: "13px", fontWeight: 500 }}>{isOnline ? downRate.unit : "KB/s"}</span>
               </strong>
             </div>
 
@@ -247,8 +305,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <span className="gpu-dot" style={{ width: "8px", height: "8px", borderRadius: "50%" }} />
                 Current Upload (TX)
               </span>
-              <strong style={{ fontSize: "20px", color: "var(--security-blue)", letterSpacing: "-0.5px" }}>
-                {upRate.value} <span style={{ fontSize: "13px", fontWeight: 500 }}>{upRate.unit}</span>
+              <strong style={{ fontSize: "20px", color: isOnline ? "var(--security-blue)" : "var(--text-muted)", letterSpacing: "-0.5px" }}>
+                {isOnline ? upRate.value : "0.0"} <span style={{ fontSize: "13px", fontWeight: 500 }}>{isOnline ? upRate.unit : "KB/s"}</span>
               </strong>
             </div>
           </div>
@@ -275,9 +333,25 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               paddingTop: "12px",
             }}
           >
-            <span style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <CheckCircle2 size={13} style={{ color: "var(--accent)" }} />
-              State: UP · Full Duplex
+            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              {isOnline ? (
+                <>
+                  <CheckCircle2 size={13} style={{ color: "var(--accent)" }} />
+                  <span>
+                    State: UP · {overview?.connectionType} · IP:{" "}
+                    <strong style={{ color: "var(--text-primary)", fontFamily: "monospace" }}>
+                      {overview?.activeIp ?? "Dynamic IP"}
+                    </strong>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <XCircle size={13} style={{ color: "#ef4444" }} />
+                  <span style={{ color: "#ef7777" }}>
+                    Network offline · Connect Ethernet or WiFi to view live telemetry
+                  </span>
+                </>
+              )}
             </span>
             <button
               onClick={() => onNavigate("Network")}

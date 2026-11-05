@@ -8,6 +8,7 @@ import {
   HardDrive,
   Activity,
   Layers,
+  Info,
 } from "lucide-react";
 import type { SensorMetrics, SensorReading } from "../types/telemetry";
 import { MetricCard } from "../components/cards/MetricCard";
@@ -24,8 +25,41 @@ const SensorGroupCard: React.FC<{
   icon: React.ReactNode;
   readings: SensorReading[];
   color?: string;
-}> = ({ title, icon, readings, color = "var(--accent)" }) => {
-  if (readings.length === 0) return null;
+  emptyFallbackMessage?: string;
+}> = ({ title, icon, readings, color = "var(--accent)", emptyFallbackMessage }) => {
+  if (readings.length === 0) {
+    if (!emptyFallbackMessage) return null;
+    return (
+      <article className="panel" style={{ width: "100%", marginBottom: "16px" }}>
+        <div className="panel-header" style={{ marginBottom: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ color: "var(--text-muted)" }}>{icon}</div>
+            <div>
+              <h3 style={{ margin: 0 }}>{title}</h3>
+              <p style={{ margin: 0 }}>Firmware controlled or unexposed</p>
+            </div>
+          </div>
+          <span className="section-tag">AUTO / EC</span>
+        </div>
+        <div
+          style={{
+            padding: "14px 16px",
+            borderRadius: "10px",
+            background: "var(--surface)",
+            color: "var(--text-muted)",
+            fontSize: "12px",
+            lineHeight: 1.6,
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <Info size={16} style={{ color: "var(--security-blue)", flexShrink: 0 }} />
+          <span>{emptyFallbackMessage}</span>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article className="panel" style={{ width: "100%", marginBottom: "16px" }}>
@@ -168,15 +202,28 @@ export const SensorsPage: React.FC<SensorsPageProps> = ({
 
         <MetricCard
           label="Cooling Fans"
-          value={sensors?.fans.length ?? 0}
-          unit="Active"
+          value={
+            sensors?.fans && sensors.fans.length > 0
+              ? sensors.fans.length
+              : "0"
+          }
+          unit={sensors?.fans && sensors.fans.length > 0 ? "Active" : ""}
           detail={
-            sensors?.fans[0]
+            sensors?.fans && sensors.fans.length > 0
               ? `${sensors.fans[0].name}: ${sensors.fans[0].value.toFixed(0)} RPM`
-              : "Integrated cooling assembly"
+              : "No direct tachometer probe exposed (Firmware / EC auto-cooling)"
           }
           icon={<Wind size={20} />}
-          color="var(--security-blue, #38bdf8)"
+          color={
+            sensors?.fans && sensors.fans.length > 0
+              ? "var(--security-blue, #38bdf8)"
+              : "var(--text-muted)"
+          }
+          badge={
+            sensors?.fans && sensors.fans.length > 0
+              ? `${sensors.fans.length} Fans`
+              : "Auto / EC"
+          }
         />
 
         <MetricCard
@@ -206,6 +253,7 @@ export const SensorsPage: React.FC<SensorsPageProps> = ({
           icon={<Cpu size={22} />}
           readings={sensors?.cpuTemperatures ?? []}
           color="var(--accent, #22c55e)"
+          emptyFallbackMessage="No direct CPU junction probes reported. Package thermals may be managed through ACPI thermal zones."
         />
 
         {/* GPU Temperatures */}
@@ -214,6 +262,7 @@ export const SensorsPage: React.FC<SensorsPageProps> = ({
           icon={<CircuitBoard size={22} />}
           readings={sensors?.gpuTemperatures ?? []}
           color="var(--security-blue, #38bdf8)"
+          emptyFallbackMessage="Discrete GPU sensor not reporting in current power state."
         />
 
         {/* Cooling Fans */}
@@ -222,6 +271,7 @@ export const SensorsPage: React.FC<SensorsPageProps> = ({
           icon={<Wind size={22} />}
           readings={sensors?.fans ?? []}
           color="var(--security-blue, #38bdf8)"
+          emptyFallbackMessage="No hardware fan tachometers exposed via hwmon. On laptops and passively cooled devices, thermal curves and fans are driven directly by firmware embedded controllers (EC)."
         />
 
         {/* Storage Temperatures */}

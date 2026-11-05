@@ -42,6 +42,9 @@ export interface SystemOverview {
   netRxSpeedBytesSec: number;
   netTxSpeedBytesSec: number;
   activeInterface: string;
+  activeIp: string | null;
+  connectionType: string;
+  isConnected: boolean;
 
   cpuModel: string;
   gpuModel: string;

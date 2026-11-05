@@ -654,6 +654,26 @@ button {
   overflow: visible;
 }
 
+.area-chart-container,
+.dual-line-chart-container {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  border-radius: 8px;
+  margin-top: 10px;
+  margin-bottom: 12px;
+}
+
+.area-chart-svg,
+.dual-chart-svg {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
 .chart-x-axis {
   position: absolute;
   bottom: 0;

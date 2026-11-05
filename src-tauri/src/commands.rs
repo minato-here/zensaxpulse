@@ -45,6 +45,9 @@ pub struct SystemOverview {
     pub net_rx_speed_bytes_sec: f64,
     pub net_tx_speed_bytes_sec: f64,
     pub active_interface: String,
+    pub active_ip: Option<String>,
+    pub connection_type: String,
+    pub is_connected: bool,
 
     pub cpu_model: String,
     pub gpu_model: String,
@@ -105,6 +108,33 @@ pub fn get_system_overview(state: State<'_, SharedTelemetryState>) -> Result<Sys
     let cpu_history = guard.cpu_history.iter().cloned().collect();
     let memory_history = guard.memory_history.iter().cloned().collect();
 
+    let net_metrics = network::read_network_metrics(
+        guard.cached_net_rx_rate,
+        guard.cached_net_tx_rate,
+        &guard.cached_iface_rates,
+    );
+
+    // Identify active interface: prioritize non-loopback that is UP and has an IP address
+    let active_iface = net_metrics
+        .interfaces
+        .iter()
+        .find(|i| i.name != "lo" && i.state == "UP" && i.ipv4_address.is_some())
+        .or_else(|| net_metrics.interfaces.iter().find(|i| i.name != "lo" && i.state == "UP"))
+        .or_else(|| net_metrics.interfaces.iter().find(|i| i.name != "lo"));
+
+    let (active_interface, active_ip, connection_type, is_connected) = match active_iface {
+        Some(iface) if iface.state == "UP" => {
+            let conn_type = iface.interface_type.clone();
+            (iface.name.clone(), iface.ipv4_address.clone(), conn_type, true)
+        }
+        Some(iface) => {
+            (iface.name.clone(), None, "Disconnected".to_string(), false)
+        }
+        None => {
+            ("None".to_string(), None, "Offline".to_string(), false)
+        }
+    };
+
     Ok(SystemOverview {
         cpu_usage_percent: (guard.cached_cpu_usage * 10.0).round() / 10.0,
         memory_total_gb: mem.total_ram_gb,
@@ -127,7 +157,10 @@ pub fn get_system_overview(state: State<'_, SharedTelemetryState>) -> Result<Sys
         storage_usage_percent: storage_m.root_usage_percent,
         net_rx_speed_bytes_sec: guard.cached_net_rx_rate,
         net_tx_speed_bytes_sec: guard.cached_net_tx_rate,
-        active_interface: "wlp4s0".to_string(),
+        active_interface,
+        active_ip,
+        connection_type,
+        is_connected,
         cpu_model,
         gpu_model,
         cpu_temp_c: cpu_temp,

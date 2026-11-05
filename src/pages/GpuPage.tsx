@@ -248,6 +248,8 @@ export const GpuPage: React.FC<GpuPageProps> = ({ gpu, loading, error }) => {
                   ? `${activeDevice.fanSpeedPercent.toFixed(0)}%`
                   : activeDevice.fanSpeedRpm != null
                   ? `${activeDevice.fanSpeedRpm} RPM`
+                  : activeDevice.isIntegrated
+                  ? "Shared SoC"
                   : "Auto / EC"}
               </strong>
             </div>

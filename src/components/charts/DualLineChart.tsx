@@ -85,11 +85,27 @@ export const DualLineChart: React.FC<DualLineChartProps> = ({
   const hoveredTx = hoverIndex !== null ? pointsTx[hoverIndex] : null;
 
   return (
-    <div className="dual-line-chart-container" style={{ position: "relative", width: "100%" }}>
+    <div
+      className="dual-line-chart-container"
+      style={{
+        position: "relative",
+        width: "100%",
+        height: `${height}px`,
+        display: "block",
+        overflow: "hidden",
+        borderRadius: "8px",
+      }}
+    >
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="chart-svg"
-        style={{ width: "100%", height: `${height}px`, overflow: "visible" }}
+        className="dual-chart-svg"
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          display: "block",
+          overflow: "hidden",
+        }}
         onMouseLeave={() => setHoverIndex(null)}
       >
         <defs>
