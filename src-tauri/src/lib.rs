@@ -1,349 +1,221 @@
-use serde::Serialize;
-use std::{
-    fs,
-    process::Command,
-    thread,
-    time::Duration,
+pub mod commands;
+pub mod state;
+pub mod telemetry;
+
+use state::{
+    create_shared_state, GpuHistoryPoint, HistoryPoint, NetworkHistoryPoint,
+    SharedTelemetryState, MAX_HISTORY_POINTS,
 };
+use std::{
+    sync::Arc,
+    thread,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
+use telemetry::{cpu, gpu, memory, network, storage};
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct SystemMetrics {
-    cpu_usage_percent: f64,
-
-    memory_total_gb: f64,
-    memory_used_gb: f64,
-    memory_available_gb: f64,
-    memory_usage_percent: f64,
-
-    swap_total_gb: f64,
-    swap_used_gb: f64,
-    swap_usage_percent: f64,
-
-    uptime_seconds: f64,
-
-    load_average_1m: f64,
-    load_average_5m: f64,
-    load_average_15m: f64,
-
-    gpu_usage_percent: Option<f64>,
-    gpu_memory_used_gb: Option<f64>,
-    gpu_memory_total_gb: Option<f64>,
-    gpu_temperature_c: Option<f64>,
-
-    storage_total_gb: Option<f64>,
-    storage_used_gb: Option<f64>,
-    storage_usage_percent: Option<f64>,
+fn current_timestamp_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
-fn read_cpu_counters() -> Result<(u64, u64), String> {
-    let contents = fs::read_to_string("/proc/stat")
-        .map_err(|error| format!("Failed to read /proc/stat: {error}"))?;
-
-    let cpu_line = contents
-        .lines()
-        .find(|line| line.starts_with("cpu "))
-        .ok_or_else(|| "Aggregate CPU counters not found".to_string())?;
-
-    let values: Vec<u64> = cpu_line
-        .split_whitespace()
-        .skip(1)
-        .map(|value| {
-            value
-                .parse::<u64>()
-                .map_err(|error| format!("Invalid CPU counter: {error}"))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    if values.len() < 4 {
-        return Err("Insufficient CPU counters in /proc/stat".to_string());
-    }
-
-    let total: u64 = values.iter().sum();
-    let idle = values[3] + values.get(4).copied().unwrap_or(0);
-
-    Ok((total, idle))
-}
-
-fn calculate_cpu_usage() -> Result<f64, String> {
-    let (total_before, idle_before) = read_cpu_counters()?;
-
-    thread::sleep(Duration::from_millis(350));
-
-    let (total_after, idle_after) = read_cpu_counters()?;
-
-    let total_delta = total_after.saturating_sub(total_before);
-    let idle_delta = idle_after.saturating_sub(idle_before);
-
-    if total_delta == 0 {
-        return Ok(0.0);
-    }
-
-    let busy_delta = total_delta.saturating_sub(idle_delta);
-    let percentage = (busy_delta as f64 / total_delta as f64) * 100.0;
-
-    Ok(percentage.clamp(0.0, 100.0))
-}
-
-fn read_memory_values() -> Result<(f64, f64, f64, f64, f64, f64), String> {
-    let contents = fs::read_to_string("/proc/meminfo")
-        .map_err(|error| format!("Failed to read /proc/meminfo: {error}"))?;
-
-    let mut values = std::collections::HashMap::<String, f64>::new();
-
-    for line in contents.lines() {
-        let mut parts = line.split_whitespace();
-
-        let Some(key) = parts.next() else {
-            continue;
-        };
-
-        let Some(value) = parts.next() else {
-            continue;
-        };
-
-        let value = value
-            .parse::<f64>()
-            .map_err(|error| format!("Invalid memory value for {key}: {error}"))?;
-
-        values.insert(key.trim_end_matches(':').to_string(), value);
-    }
-
-    let total_kib = *values
-        .get("MemTotal")
-        .ok_or_else(|| "MemTotal not found in /proc/meminfo".to_string())?;
-
-    let available_kib = *values
-        .get("MemAvailable")
-        .ok_or_else(|| "MemAvailable not found in /proc/meminfo".to_string())?;
-
-    let swap_total_kib = *values.get("SwapTotal").unwrap_or(&0.0);
-    let swap_free_kib = *values.get("SwapFree").unwrap_or(&0.0);
-
-    let used_kib = (total_kib - available_kib).max(0.0);
-    let swap_used_kib = (swap_total_kib - swap_free_kib).max(0.0);
-
-    let kib_to_gib = 1.0 / (1024.0 * 1024.0);
-
-    Ok((
-        total_kib * kib_to_gib,
-        used_kib * kib_to_gib,
-        available_kib * kib_to_gib,
-        swap_total_kib * kib_to_gib,
-        swap_used_kib * kib_to_gib,
-        available_kib,
-    ))
-}
-
-fn read_uptime() -> Result<f64, String> {
-    let contents = fs::read_to_string("/proc/uptime")
-        .map_err(|error| format!("Failed to read /proc/uptime: {error}"))?;
-
-    contents
-        .split_whitespace()
-        .next()
-        .ok_or_else(|| "Uptime value not found".to_string())?
-        .parse::<f64>()
-        .map_err(|error| format!("Invalid uptime value: {error}"))
-}
-
-fn read_load_average() -> Result<(f64, f64, f64), String> {
-    let contents = fs::read_to_string("/proc/loadavg")
-        .map_err(|error| format!("Failed to read /proc/loadavg: {error}"))?;
-
-    let mut values = contents.split_whitespace();
-
-    let load_1m = values
-        .next()
-        .ok_or_else(|| "1-minute load average missing".to_string())?
-        .parse::<f64>()
-        .map_err(|error| format!("Invalid load average: {error}"))?;
-
-    let load_5m = values
-        .next()
-        .ok_or_else(|| "5-minute load average missing".to_string())?
-        .parse::<f64>()
-        .map_err(|error| format!("Invalid load average: {error}"))?;
-
-    let load_15m = values
-        .next()
-        .ok_or_else(|| "15-minute load average missing".to_string())?
-        .parse::<f64>()
-        .map_err(|error| format!("Invalid load average: {error}"))?;
-
-    Ok((load_1m, load_5m, load_15m))
-}
-
-fn read_nvidia_gpu() -> (
-    Option<f64>,
-    Option<f64>,
-    Option<f64>,
-    Option<f64>,
-) {
-    let output = Command::new("nvidia-smi")
-        .args([
-            "--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu",
-            "--format=csv,noheader,nounits",
-        ])
-        .output();
-
-    let Ok(output) = output else {
-        return (None, None, None, None);
-    };
-
-    if !output.status.success() {
-        return (None, None, None, None);
-    }
-
-    let output = String::from_utf8_lossy(&output.stdout);
-    let Some(line) = output.lines().next() else {
-        return (None, None, None, None);
-    };
-
-    let values: Vec<&str> = line.split(',').map(str::trim).collect();
-
-    if values.len() < 4 {
-        return (None, None, None, None);
-    }
-
-    let usage = values[0].parse::<f64>().ok();
-    let memory_used_mb = values[1].parse::<f64>().ok();
-    let memory_total_mb = values[2].parse::<f64>().ok();
-    let temperature = values[3].parse::<f64>().ok();
-
-    let mb_to_gib = 1.0 / 1024.0;
-
-    (
-        usage,
-        memory_used_mb.map(|value| value * mb_to_gib),
-        memory_total_mb.map(|value| value * mb_to_gib),
-        temperature,
-    )
-}
-
-fn read_root_storage() -> (
-    Option<f64>,
-    Option<f64>,
-    Option<f64>,
-) {
-    let output = Command::new("df")
-        .args(["-B1", "--output=size,used,avail", "/"])
-        .output();
-
-    let Ok(output) = output else {
-        return (None, None, None);
-    };
-
-    if !output.status.success() {
-        return (None, None, None);
-    }
-
-    let output = String::from_utf8_lossy(&output.stdout);
-
-    let Some(line) = output.lines().nth(1) else {
-        return (None, None, None);
-    };
-
-    let values: Vec<u64> = line
-        .split_whitespace()
-        .filter_map(|value| value.parse::<u64>().ok())
-        .collect();
-
-    if values.len() < 3 || values[0] == 0 {
-        return (None, None, None);
-    }
-
-    let total_bytes = values[0] as f64;
-    let used_bytes = values[1] as f64;
-
-    let bytes_to_gib = 1.0 / (1024.0 * 1024.0 * 1024.0);
-
-    let usage_percent = (used_bytes / total_bytes) * 100.0;
-
-    (
-        Some(total_bytes * bytes_to_gib),
-        Some(used_bytes * bytes_to_gib),
-        Some(usage_percent.clamp(0.0, 100.0)),
-    )
-}
-
-#[tauri::command]
-fn get_system_metrics() -> Result<SystemMetrics, String> {
-    let cpu_usage_percent = calculate_cpu_usage()?;
-
-    let (
-        memory_total_gb,
-        memory_used_gb,
-        memory_available_gb,
-        swap_total_gb,
-        swap_used_gb,
-        _,
-    ) = read_memory_values()?;
-
-    let memory_usage_percent = if memory_total_gb > 0.0 {
-        (memory_used_gb / memory_total_gb) * 100.0
-    } else {
-        0.0
-    };
-
-    let swap_usage_percent = if swap_total_gb > 0.0 {
-        (swap_used_gb / swap_total_gb) * 100.0
-    } else {
-        0.0
-    };
-
-    let uptime_seconds = read_uptime()?;
-
-    let (load_average_1m, load_average_5m, load_average_15m) =
-        read_load_average()?;
-
-    let (
-        gpu_usage_percent,
-        gpu_memory_used_gb,
-        gpu_memory_total_gb,
-        gpu_temperature_c,
-    ) = read_nvidia_gpu();
-
-    let (
-        storage_total_gb,
-        storage_used_gb,
-        storage_usage_percent,
-    ) = read_root_storage();
-
-    Ok(SystemMetrics {
-        cpu_usage_percent,
-
-        memory_total_gb,
-        memory_used_gb,
-        memory_available_gb,
-        memory_usage_percent,
-
-        swap_total_gb,
-        swap_used_gb,
-        swap_usage_percent,
-
-        uptime_seconds,
-
-        load_average_1m,
-        load_average_5m,
-        load_average_15m,
-
-        gpu_usage_percent,
-        gpu_memory_used_gb,
-        gpu_memory_total_gb,
-        gpu_temperature_c,
-
-        storage_total_gb,
-        storage_used_gb,
-        storage_usage_percent,
-    })
+// Background sampler running every 1000ms
+fn run_telemetry_collector(state: SharedTelemetryState) {
+    thread::spawn(move || {
+        let mut gpu_tick_counter = 0u64;
+
+        loop {
+            let now = Instant::now();
+            let timestamp = current_timestamp_secs();
+
+            // 1. CPU Counters
+            if let Ok((agg, per_core)) = cpu::read_raw_cpu_counters() {
+                let mut guard = state.lock().unwrap();
+                let prev_cpu = guard.last_cpu.clone();
+
+                if let Some(prev) = prev_cpu {
+                    let cpu_pct = cpu::calculate_percentage(prev.aggregate, agg);
+                    guard.cached_cpu_usage = cpu_pct;
+
+                    let mut core_pcts = Vec::with_capacity(per_core.len());
+                    for (i, &current_c) in per_core.iter().enumerate() {
+                        let prev_c = prev.per_core.get(i).copied().unwrap_or(current_c);
+                        core_pcts.push(cpu::calculate_percentage(prev_c, current_c));
+                    }
+                    guard.cached_per_core_usage = core_pcts;
+
+                    if guard.cpu_history.len() >= MAX_HISTORY_POINTS {
+                        guard.cpu_history.pop_front();
+                    }
+                    guard.cpu_history.push_back(HistoryPoint {
+                        timestamp,
+                        value: (cpu_pct * 10.0).round() / 10.0,
+                    });
+                }
+
+                guard.last_cpu = Some(state::CpuCounterSnapshot {
+                    aggregate: agg,
+                    per_core,
+                    timestamp: now,
+                });
+            }
+
+            // 2. Memory
+            if let Ok(mem) = memory::read_memory_metrics() {
+                let mut guard = state.lock().unwrap();
+                if guard.memory_history.len() >= MAX_HISTORY_POINTS {
+                    guard.memory_history.pop_front();
+                }
+                guard.memory_history.push_back(HistoryPoint {
+                    timestamp,
+                    value: (mem.ram_usage_percent * 10.0).round() / 10.0,
+                });
+            }
+
+            // 3. Network
+            let net_raw = network::read_proc_net_dev();
+            let mut total_rx = 0u64;
+            let mut total_tx = 0u64;
+            let mut iface_map = std::collections::HashMap::new();
+
+            for (ifname, entry) in &net_raw {
+                iface_map.insert(ifname.clone(), (entry.rx_bytes, entry.tx_bytes));
+                if ifname != "lo" {
+                    total_rx += entry.rx_bytes;
+                    total_tx += entry.tx_bytes;
+                }
+            }
+
+            {
+                let mut guard = state.lock().unwrap();
+                let prev_net = guard.last_net.clone();
+
+                if let Some(prev) = prev_net {
+                    let elapsed = now.duration_since(prev.timestamp).as_secs_f64();
+                    if elapsed > 0.1 {
+                        let rx_delta = total_rx.saturating_sub(prev.total_rx);
+                        let tx_delta = total_tx.saturating_sub(prev.total_tx);
+
+                        let rx_rate = rx_delta as f64 / elapsed;
+                        let tx_rate = tx_delta as f64 / elapsed;
+
+                        guard.cached_net_rx_rate = rx_rate;
+                        guard.cached_net_tx_rate = tx_rate;
+
+                        // Per interface rates
+                        let mut if_rates = std::collections::HashMap::new();
+                        for (name, &(rx, tx)) in &iface_map {
+                            if let Some(&(prev_rx, prev_tx)) = prev.interfaces.get(name) {
+                                let irx = (rx.saturating_sub(prev_rx) as f64) / elapsed;
+                                let itx = (tx.saturating_sub(prev_tx) as f64) / elapsed;
+                                if_rates.insert(name.clone(), (irx, itx));
+                            }
+                        }
+                        guard.cached_iface_rates = if_rates;
+
+                        if guard.network_history.len() >= MAX_HISTORY_POINTS {
+                            guard.network_history.pop_front();
+                        }
+                        guard.network_history.push_back(NetworkHistoryPoint {
+                            timestamp,
+                            rx_bytes_sec: rx_rate,
+                            tx_bytes_sec: tx_rate,
+                        });
+                    }
+                }
+
+                guard.last_net = Some(state::NetCounterSnapshot {
+                    interfaces: iface_map,
+                    total_rx,
+                    total_tx,
+                    timestamp: now,
+                });
+            }
+
+            // 4. Disk stats deltas
+            let disk_raw = storage::read_diskstats();
+            {
+                let mut guard = state.lock().unwrap();
+                let prev_disk = guard.last_disk.clone();
+
+                if let Some(prev) = prev_disk {
+                    let elapsed = now.duration_since(prev.timestamp).as_secs_f64();
+                    if elapsed > 0.1 {
+                        let mut total_read_sectors = 0u64;
+                        let mut total_written_sectors = 0u64;
+
+                        for (dev, &(r, w)) in &disk_raw {
+                            if let Some(&(pr, pw)) = prev.devices.get(dev) {
+                                total_read_sectors += r.saturating_sub(pr);
+                                total_written_sectors += w.saturating_sub(pw);
+                            }
+                        }
+
+                        let read_bytes = (total_read_sectors as f64) * 512.0;
+                        let written_bytes = (total_written_sectors as f64) * 512.0;
+
+                        guard.cached_disk_read_rate = (read_bytes / (1024.0 * 1024.0)) / elapsed;
+                        guard.cached_disk_write_rate = (written_bytes / (1024.0 * 1024.0)) / elapsed;
+                    }
+                }
+
+                guard.last_disk = Some(state::DiskCounterSnapshot {
+                    devices: disk_raw,
+                    timestamp: now,
+                });
+            }
+
+            // 5. GPU Sampling (every 2 seconds)
+            gpu_tick_counter += 1;
+            if gpu_tick_counter % 2 == 0 {
+                let cached_gpus = gpu::detect_all_gpus();
+                let mut guard = state.lock().unwrap();
+                for g in cached_gpus {
+                    let history = guard.gpu_history.entry(g.id.clone()).or_default();
+                    if history.len() >= MAX_HISTORY_POINTS {
+                        history.pop_front();
+                    }
+                    history.push_back(GpuHistoryPoint {
+                        timestamp,
+                        utilization: g.utilization_percent.unwrap_or(0.0),
+                        memory_used_mb: g.memory_used_mb.unwrap_or(0.0),
+                        temperature: g.temperature_c.unwrap_or(0.0),
+                    });
+                }
+            }
+
+            thread::sleep(Duration::from_millis(1000));
+        }
+    });
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let state = create_shared_state();
+
+    // Start background telemetry collector thread
+    run_telemetry_collector(Arc::clone(&state));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_system_metrics])
+        .manage(state)
+        .invoke_handler(tauri::generate_handler![
+            commands::get_system_metrics,
+            commands::get_system_overview,
+            commands::get_cpu_metrics,
+            commands::get_gpu_metrics,
+            commands::get_memory_metrics,
+            commands::get_storage_metrics,
+            commands::get_network_metrics,
+            commands::get_sensor_metrics,
+            commands::get_process_list,
+            commands::kill_process,
+            commands::get_system_info,
+            commands::get_system_services,
+            commands::control_system_service,
+            commands::system_power_action,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
