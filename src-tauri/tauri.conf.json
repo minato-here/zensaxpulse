@@ -24,7 +24,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "category": "System",
+    "category": "Utility",
     "shortDescription": "Native Linux System Intelligence Desktop Application",
     "longDescription": "A premium, privacy-first, native Linux system monitoring and intelligence desktop application.",
     "icon": [
