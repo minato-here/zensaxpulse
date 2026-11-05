@@ -208,6 +208,7 @@ pub fn run() {
             commands::get_memory_metrics,
             commands::get_storage_metrics,
             commands::get_network_metrics,
+            commands::get_battery_metrics,
             commands::get_sensor_metrics,
             commands::get_process_list,
             commands::kill_process,

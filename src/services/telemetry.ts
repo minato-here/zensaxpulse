@@ -7,6 +7,7 @@ import type {
   StorageMetrics,
   NetworkMetrics,
   SensorMetrics,
+  PowerSupplyMetrics,
   ProcessInfo,
   SystemInfo,
   ServicesReport,
@@ -38,6 +39,10 @@ export async function fetchNetworkMetrics(): Promise<NetworkMetrics> {
 
 export async function fetchSensorMetrics(): Promise<SensorMetrics> {
   return await invoke<SensorMetrics>("get_sensor_metrics");
+}
+
+export async function fetchBatteryMetrics(): Promise<PowerSupplyMetrics> {
+  return await invoke<PowerSupplyMetrics>("get_battery_metrics");
 }
 
 export async function fetchProcessList(limit?: number): Promise<ProcessInfo[]> {

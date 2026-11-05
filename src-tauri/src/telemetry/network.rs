@@ -89,6 +89,36 @@ pub fn read_proc_net_dev() -> HashMap<String, RawNetDevEntry> {
         }
     }
 
+    // Complement with /sys/class/net for interfaces not present or down in /proc/net/dev
+    if let Ok(entries) = fs::read_dir("/sys/class/net") {
+        for entry in entries.flatten() {
+            let ifname = entry.file_name().to_string_lossy().to_string();
+            if !map.contains_key(&ifname) {
+                let stat_dir = entry.path().join("statistics");
+                let read_u64 = |file: &str| -> u64 {
+                    fs::read_to_string(stat_dir.join(file))
+                        .ok()
+                        .and_then(|s| s.trim().parse::<u64>().ok())
+                        .unwrap_or(0)
+                };
+
+                map.insert(
+                    ifname,
+                    RawNetDevEntry {
+                        rx_bytes: read_u64("rx_bytes"),
+                        rx_packets: read_u64("rx_packets"),
+                        rx_errors: read_u64("rx_errors"),
+                        rx_drops: read_u64("rx_dropped"),
+                        tx_bytes: read_u64("tx_bytes"),
+                        tx_packets: read_u64("tx_packets"),
+                        tx_errors: read_u64("tx_errors"),
+                        tx_drops: read_u64("tx_dropped"),
+                    },
+                );
+            }
+        }
+    }
+
     map
 }
 

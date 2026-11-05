@@ -7,7 +7,9 @@ import {
   Radio,
   Layers,
   ShieldCheck,
-  Globe,
+  Activity,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import type { NetworkMetrics } from "../types/telemetry";
 import { MetricCard } from "../components/cards/MetricCard";
@@ -39,19 +41,38 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
   error,
 }) => {
   const [selectedIface, setSelectedIface] = useState<string | null>(null);
+  const [filterBySelected, setFilterBySelected] = useState<boolean>(false);
 
   if (loading && !network) {
     return <LoadingState message="Reading Linux network interfaces and socket states..." />;
   }
 
   const interfaces = network?.interfaces ?? [];
+
+  // Determine active interface based on user selection or system default
   const activeIface =
-    interfaces.find((i) => i.name === selectedIface) ??
+    (selectedIface ? interfaces.find((i) => i.name === selectedIface) : null) ??
     interfaces.find((i) => i.name === network?.activeInterfaceName) ??
     interfaces[0];
 
+  const ifaceDown = formatSpeed(activeIface?.rxSpeedBytesSec ?? 0);
+  const ifaceUp = formatSpeed(activeIface?.txSpeedBytesSec ?? 0);
   const totalDown = formatSpeed(network?.totalRxSpeedBytesSec ?? 0);
   const totalUp = formatSpeed(network?.totalTxSpeedBytesSec ?? 0);
+
+  // Filter sockets if user enables "Filter by Selected"
+  const connections = network?.connections ?? [];
+  const filteredConnections = filterBySelected && activeIface
+    ? connections.filter((c) => {
+        if (activeIface.name === "lo") {
+          return c.localAddress.startsWith("127.") || c.localAddress === "::1" || c.remoteAddress.startsWith("127.");
+        }
+        if (activeIface.ipv4Address) {
+          return c.localAddress === activeIface.ipv4Address || c.remoteAddress === activeIface.ipv4Address;
+        }
+        return true;
+      })
+    : connections;
 
   return (
     <div className="dashboard-content">
@@ -68,7 +89,7 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
         </div>
 
         {/* Interface Switcher Pills */}
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
           {interfaces.map((iface) => {
             const isSelected = activeIface && iface.name === activeIface.name;
             const isUp = iface.state === "UP";
@@ -79,17 +100,21 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
                 onClick={() => setSelectedIface(iface.name)}
                 type="button"
                 style={{
-                  padding: "7px 13px",
+                  padding: "8px 14px",
                   borderRadius: "10px",
                   border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
                   background: isSelected ? "var(--accent-soft)" : "var(--surface)",
                   color: isSelected ? "var(--accent)" : "var(--text-secondary)",
                   display: "flex",
                   alignItems: "center",
-                  gap: "7px",
+                  gap: "8px",
                   cursor: "pointer",
-                  fontWeight: 600,
+                  fontWeight: 700,
                   fontSize: "12px",
+                  boxShadow: isSelected
+                    ? "0 0 10px rgba(34, 197, 94, 0.2)"
+                    : "0 1px 3px rgba(0,0,0,0.1)",
+                  transition: "all 0.15s ease",
                 }}
               >
                 {iface.interfaceType === "WiFi" ? (
@@ -103,8 +128,10 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
                     width: "7px",
                     height: "7px",
                     borderRadius: "50%",
-                    background: isUp ? "#22c55e" : "var(--text-muted)",
+                    background: isUp ? "#22c55e" : "#ef4444",
+                    boxShadow: isUp ? "0 0 6px #22c55e" : "none",
                   }}
+                  title={isUp ? "Link UP" : "Link DOWN"}
                 />
               </button>
             );
@@ -114,41 +141,62 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
 
       {error && <div className="telemetry-error">Network notice: {error}</div>}
 
-      {/* Primary Metrics Grid */}
+      {/* Primary Metrics Grid (Dedicated to Selected Interface) */}
       <section className="metrics-grid">
+        {/* Card 1: Selected Interface Download */}
         <MetricCard
-          label="Total Download Rate"
-          value={totalDown.value}
-          unit={totalDown.unit}
-          detail="Aggregate system RX throughput"
+          label={`${activeIface?.name ?? "Interface"} Download`}
+          value={ifaceDown.value}
+          unit={ifaceDown.unit}
+          detail={`Live RX rate on ${activeIface?.name ?? "medium"} (System Total: ${totalDown.value} ${totalDown.unit})`}
           icon={<ArrowDownCircle size={20} />}
           color="var(--accent, #22c55e)"
+          badge={activeIface?.name ?? "Active"}
         />
 
+        {/* Card 2: Selected Interface Upload */}
         <MetricCard
-          label="Total Upload Rate"
-          value={totalUp.value}
-          unit={totalUp.unit}
-          detail="Aggregate system TX throughput"
+          label={`${activeIface?.name ?? "Interface"} Upload`}
+          value={ifaceUp.value}
+          unit={ifaceUp.unit}
+          detail={`Live TX rate on ${activeIface?.name ?? "medium"} (System Total: ${totalUp.value} ${totalUp.unit})`}
           icon={<ArrowUpCircle size={20} />}
           color="var(--security-blue, #38bdf8)"
+          badge={activeIface?.name ?? "Active"}
         />
 
+        {/* Card 3: Selected Interface Link State */}
         <MetricCard
-          label="Interface State"
-          value={activeIface?.state ?? "UNKNOWN"}
-          detail={`${activeIface?.name ?? "wlp4s0"} · ${activeIface?.interfaceType ?? "Interface"}`}
-          icon={<Radio size={20} />}
+          label={`${activeIface?.name ?? "Interface"} State`}
+          value={activeIface?.state ?? "DOWN"}
+          detail={`${activeIface?.interfaceType ?? "Interface"} · ${
+            activeIface?.speedMbps
+              ? `${activeIface.speedMbps} Mbps`
+              : activeIface?.state === "UP"
+              ? "Active Link"
+              : "Disconnected"
+          }`}
+          icon={
+            activeIface?.state === "UP" ? (
+              <Radio size={20} />
+            ) : (
+              <XCircle size={20} style={{ color: "#ef4444" }} />
+            )
+          }
           color={activeIface?.state === "UP" ? "var(--accent, #22c55e)" : "var(--text-muted)"}
+          badge={activeIface?.state === "UP" ? "ONLINE" : "OFFLINE"}
         />
 
+        {/* Card 4: Cumulative Transferred Data */}
         <MetricCard
-          label="Active Sockets"
-          value={network?.connections.length ?? 0}
-          unit="Sockets"
-          detail="Local TCP/UDP socket connections"
-          icon={<Globe size={20} />}
+          label={`${activeIface?.name ?? "Interface"} Data`}
+          value={formatBytes((activeIface?.rxBytes ?? 0) + (activeIface?.txBytes ?? 0))}
+          detail={`RX: ${formatBytes(activeIface?.rxBytes ?? 0)} · TX: ${formatBytes(
+            activeIface?.txBytes ?? 0
+          )}`}
+          icon={<Activity size={20} />}
           color="var(--security-blue, #38bdf8)"
+          badge="Cumulative"
         />
       </section>
 
@@ -158,8 +206,10 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
         <article className="panel performance-panel">
           <div className="panel-header">
             <div>
-              <h3>Throughput History</h3>
-              <p>Download (green) vs Upload (blue) rate over time</p>
+              <h3>Bandwidth History & {activeIface?.name ?? "Interface"} Traffic</h3>
+              <p>
+                Live rate on {activeIface?.name ?? "interface"} ({ifaceDown.value} {ifaceDown.unit} RX · {ifaceUp.value} {ifaceUp.unit} TX)
+              </p>
             </div>
             <div style={{ display: "flex", gap: "14px", alignItems: "center", fontSize: "11px" }}>
               <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--accent)" }}>
@@ -183,7 +233,7 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
             />
           </div>
 
-          {/* Interface Packet Statistics */}
+          {/* Interface Packet Statistics for Selected Interface */}
           {activeIface && (
             <div
               style={{
@@ -204,11 +254,28 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
               </div>
               <div className="load-average-card">
                 <span>Packets (RX/TX)</span>
-                <strong>{(activeIface.rxPackets / 1000).toFixed(0)}k / {(activeIface.txPackets / 1000).toFixed(0)}k</strong>
+                <strong>
+                  {activeIface.rxPackets >= 1000
+                    ? `${(activeIface.rxPackets / 1000).toFixed(1)}k`
+                    : activeIface.rxPackets}{" "}
+                  /{" "}
+                  {activeIface.txPackets >= 1000
+                    ? `${(activeIface.txPackets / 1000).toFixed(1)}k`
+                    : activeIface.txPackets}
+                </strong>
               </div>
               <div className="load-average-card">
                 <span>Errors / Drops</span>
-                <strong>{activeIface.rxErrors + activeIface.txErrors} / {activeIface.rxDrops + activeIface.txDrops}</strong>
+                <strong
+                  style={{
+                    color:
+                      activeIface.rxErrors + activeIface.txErrors + activeIface.rxDrops + activeIface.txDrops > 0
+                        ? "#f59e0b"
+                        : "var(--text-primary)",
+                  }}
+                >
+                  {activeIface.rxErrors + activeIface.txErrors} / {activeIface.rxDrops + activeIface.txDrops}
+                </strong>
               </div>
             </div>
           )}
@@ -218,8 +285,8 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
         <article className="panel system-panel">
           <div className="panel-header">
             <div>
-              <h3>Interface Properties</h3>
-              <p>{activeIface?.name ?? "Interface"} configuration</p>
+              <h3>{activeIface?.name ?? "Interface"} Specifications</h3>
+              <p>{activeIface?.interfaceType ?? "Interface"} device configuration</p>
             </div>
             <span className="system-info-icon">
               <Layers size={16} />
@@ -230,46 +297,80 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
             <div className="system-info-list">
               <div className="system-info-row">
                 <span>Interface Name</span>
-                <strong>{activeIface.name}</strong>
+                <strong style={{ color: "var(--accent)" }}>{activeIface.name}</strong>
               </div>
 
               <div className="system-info-row">
-                <span>Type</span>
+                <span>Interface Type</span>
                 <strong>{activeIface.interfaceType}</strong>
               </div>
 
               <div className="system-info-row">
                 <span>Operational State</span>
-                <strong style={{ color: activeIface.state === "UP" ? "var(--accent)" : "var(--text-muted)" }}>
+                <strong
+                  style={{
+                    color: activeIface.state === "UP" ? "var(--accent)" : "#ef4444",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                  }}
+                >
+                  {activeIface.state === "UP" ? (
+                    <CheckCircle2 size={13} style={{ color: "#22c55e" }} />
+                  ) : (
+                    <XCircle size={13} style={{ color: "#ef4444" }} />
+                  )}
                   {activeIface.state}
                 </strong>
               </div>
 
               <div className="system-info-row">
                 <span>Hardware MAC</span>
-                <strong style={{ fontFamily: "monospace" }}>{activeIface.macAddress ?? "Unassigned"}</strong>
+                <strong style={{ fontFamily: "monospace" }}>
+                  {activeIface.macAddress ?? (activeIface.name === "lo" ? "Loopback (No MAC)" : "Unassigned")}
+                </strong>
               </div>
 
               <div className="system-info-row">
                 <span>IPv4 Address</span>
-                <strong style={{ fontFamily: "monospace" }}>{activeIface.ipv4Address ?? "127.0.0.1"}</strong>
+                <strong style={{ fontFamily: "monospace" }}>
+                  {activeIface.ipv4Address ??
+                    (activeIface.name === "lo"
+                      ? "127.0.0.1"
+                      : activeIface.state === "UP"
+                      ? "Awaiting DHCP / None"
+                      : "Disconnected")}
+                </strong>
               </div>
 
               <div className="system-info-row">
                 <span>IPv6 Address</span>
                 <strong style={{ fontFamily: "monospace", fontSize: "11px" }}>
-                  {activeIface.ipv6Address ?? "::1"}
+                  {activeIface.ipv6Address ??
+                    (activeIface.name === "lo"
+                      ? "::1"
+                      : activeIface.state === "UP"
+                      ? "None"
+                      : "None")}
                 </strong>
               </div>
 
               <div className="system-info-row">
-                <span>Current RX Speed</span>
-                <strong>{formatSpeed(activeIface.rxSpeedBytesSec).value} {formatSpeed(activeIface.rxSpeedBytesSec).unit}</strong>
+                <span>Negotiated Speed</span>
+                <strong>
+                  {activeIface.speedMbps
+                    ? `${activeIface.speedMbps} Mbps`
+                    : activeIface.state === "UP"
+                    ? "Dynamic Wireless / Full"
+                    : "No Link"}
+                </strong>
               </div>
 
               <div className="system-info-row">
-                <span>Current TX Speed</span>
-                <strong>{formatSpeed(activeIface.txSpeedBytesSec).value} {formatSpeed(activeIface.txSpeedBytesSec).unit}</strong>
+                <span>Live Throughput</span>
+                <strong>
+                  {ifaceDown.value} {ifaceDown.unit} RX · {ifaceUp.value} {ifaceUp.unit} TX
+                </strong>
               </div>
             </div>
           )}
@@ -288,7 +389,7 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
             }}
           >
             <ShieldCheck size={14} style={{ color: "var(--accent)" }} />
-            Zero external network queries · Local /proc/net/dev inspection only
+            Zero remote probing · Local Linux /proc/net/dev & /sys/class/net inspection
           </div>
         </article>
       </section>
@@ -296,12 +397,34 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
       {/* Local Sockets Table */}
       <section style={{ marginTop: "24px" }}>
         <article className="panel" style={{ width: "100%" }}>
-          <div className="panel-header" style={{ marginBottom: "16px" }}>
+          <div
+            className="panel-header"
+            style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}
+          >
             <div>
               <h3>Active Local Socket Endpoints</h3>
               <p>Inspected locally via ss -tuna (no remote network probing)</p>
             </div>
-            <span className="section-tag">{network?.connections.length ?? 0} SOCKETS</span>
+
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <button
+                onClick={() => setFilterBySelected(!filterBySelected)}
+                type="button"
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: "8px",
+                  border: filterBySelected ? "1px solid var(--accent)" : "1px solid var(--border)",
+                  background: filterBySelected ? "var(--accent-soft)" : "var(--surface-raised)",
+                  color: filterBySelected ? "var(--accent)" : "var(--text-secondary)",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {filterBySelected ? `Filtered to ${activeIface?.name}` : "Show All Sockets"}
+              </button>
+              <span className="section-tag">{filteredConnections.length} SOCKETS</span>
+            </div>
           </div>
 
           <div style={{ overflowX: "auto" }}>
@@ -322,8 +445,8 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {network?.connections && network.connections.length > 0 ? (
-                  network.connections.map((conn, idx) => (
+                {filteredConnections.length > 0 ? (
+                  filteredConnections.map((conn, idx) => (
                     <tr
                       key={idx}
                       style={{
@@ -369,7 +492,9 @@ export const NetworkPage: React.FC<NetworkPageProps> = ({
                 ) : (
                   <tr>
                     <td colSpan={4} style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)" }}>
-                      No active local sockets detected in this session
+                      {filterBySelected
+                        ? `No sockets currently associated with ${activeIface?.name}`
+                        : "No active local sockets detected in this session"}
                     </td>
                   </tr>
                 )}

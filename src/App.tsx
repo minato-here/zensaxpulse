@@ -13,6 +13,7 @@ import {
   fetchMemoryMetrics,
   fetchStorageMetrics,
   fetchNetworkMetrics,
+  fetchBatteryMetrics,
   fetchSensorMetrics,
   fetchProcessList,
   fetchSystemInfo,
@@ -29,6 +30,7 @@ import { GpuPage } from "./pages/GpuPage";
 import { MemoryPage } from "./pages/MemoryPage";
 import { StoragePage } from "./pages/StoragePage";
 import { NetworkPage } from "./pages/NetworkPage";
+import { BatteryPage } from "./pages/BatteryPage";
 import { ProcessesPage } from "./pages/ProcessesPage";
 import { SensorsPage } from "./pages/SensorsPage";
 import { SystemPage } from "./pages/SystemPage";
@@ -83,6 +85,12 @@ export function App() {
     loading: networkLoading,
     error: networkError,
   } = usePolling(fetchNetworkMetrics, 1000, activePage === "Network");
+
+  const {
+    data: batteryData,
+    loading: batteryLoading,
+    error: batteryError,
+  } = usePolling(fetchBatteryMetrics, 2000, activePage === "Battery");
 
   const {
     data: processesData,
@@ -174,6 +182,14 @@ export function App() {
             network={networkData}
             loading={networkLoading}
             error={networkError}
+          />
+        )}
+
+        {activePage === "Battery" && (
+          <BatteryPage
+            powerSupply={batteryData}
+            loading={batteryLoading}
+            error={batteryError}
           />
         )}
 

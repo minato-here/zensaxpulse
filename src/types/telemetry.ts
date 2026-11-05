@@ -250,6 +250,38 @@ export interface ServicesReport {
   services: SystemdService[];
 }
 
+export interface BatteryInfo {
+  name: string;
+  isPresent: boolean;
+  status: string; // "Charging" | "Discharging" | "Full" | "Not charging" | "Unknown"
+  percentage: number;
+  healthPercentage: number;
+  wearPercentage: number;
+  cycleCount: number | null;
+  powerWatts: number;
+  voltageVolts: number;
+  designVoltageVolts: number | null;
+  energyNowWh: number;
+  energyFullWh: number;
+  energyDesignWh: number;
+  technology: string;
+  modelName: string;
+  manufacturer: string;
+  serialNumber: string | null;
+  capacityLevel: string;
+  timeToEmptySeconds: number | null;
+  timeToFullSeconds: number | null;
+  temperatureC: number | null;
+}
+
+export interface PowerSupplyMetrics {
+  hasBattery: boolean;
+  isAcConnected: boolean;
+  battery: BatteryInfo | null;
+  acAdapterName: string | null;
+  powerSources: string[];
+}
+
 export type PageId =
   | "Overview"
   | "CPU"
@@ -257,6 +289,7 @@ export type PageId =
   | "Memory"
   | "Storage"
   | "Network"
+  | "Battery"
   | "Processes"
   | "Sensors"
   | "System";

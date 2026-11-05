@@ -2,6 +2,7 @@ use crate::state::SharedTelemetryState;
 use serde::Serialize;
 use tauri::State;
 use crate::telemetry::{
+    battery::{self, PowerSupplyMetrics},
     cpu::{self, CpuMetrics},
     gpu::{self, GpuMetrics},
     memory::{self, MemoryMetrics},
@@ -249,6 +250,11 @@ pub fn get_network_metrics(state: State<'_, SharedTelemetryState>) -> Result<Net
     );
     net.history = guard.network_history.iter().cloned().collect();
     Ok(net)
+}
+
+#[tauri::command]
+pub fn get_battery_metrics() -> Result<PowerSupplyMetrics, String> {
+    Ok(battery::read_power_supply_metrics())
 }
 
 #[tauri::command]
