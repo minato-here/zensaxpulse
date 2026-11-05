@@ -1,13 +1,20 @@
-# Node dependencies
+# ================================
+# ZensaxPulse - Git Ignore
+# ================================
+
+# Node.js dependencies
 node_modules/
 
-# Frontend builds
+# Frontend build output
 dist/
 dist-ssr/
+*.local
 
-# Tauri build artifacts
+# Rust build artifacts
 src-tauri/target/
-src-tauri/gen/
+
+# Tauri generated files
+src-tauri/gen/schemas/
 
 # Environment variables and secrets
 .env
@@ -15,23 +22,35 @@ src-tauri/gen/
 !.env.example
 
 # Logs
+logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# Editors
-.vscode/
+# Package manager files
+.npm/
+.pnpm-store/
+
+# IDEs and editors
+.vscode/*
+!.vscode/extensions.json
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.code-workspace
 
-# Operating system
+# Operating system files
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Local application data
-*.sqlite
-*.db
-
-# Test and coverage output
-coverage/
-playwright-report/
-test-results/
+# Temporary files
+*.tmp
+*.temp
+*.bak
