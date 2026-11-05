@@ -795,31 +795,7 @@ button {
 }
 
 @media (max-width: 950px) {
-  .sidebar {
-    width: 78px;
-    min-width: 78px;
-    padding-inline: 12px;
-  }
-
-  .sidebar .brand-name,
-  .sidebar .sidebar-heading,
-  .sidebar .sidebar-toggle,
-  .sidebar .offline-status > div,
-  .sidebar .sidebar-version,
-  .sidebar .nav-item > span:not(.nav-icon) {
-    display: none;
-  }
-
-  .sidebar .brand {
-    justify-content: center;
-    padding: 0;
-  }
-
-  .sidebar .nav-item {
-    justify-content: center;
-    padding: 0;
-  }
-
+  /* Keep sidebar expanded by default; user controls collapse manually. */
   .lower-grid {
     grid-template-columns: 1fr;
   }
