@@ -32,6 +32,15 @@ type SystemMetrics = {
   loadAverage1m: number;
   loadAverage5m: number;
   loadAverage15m: number;
+
+  gpuUsagePercent: number | null;
+  gpuMemoryUsedGb: number | null;
+  gpuMemoryTotalGb: number | null;
+  gpuTemperatureC: number | null;
+
+  storageTotalGb: number | null;
+  storageUsedGb: number | null;
+  storageUsagePercent: number | null;
 };
 
 type Metric = {
@@ -110,11 +119,22 @@ function App() {
     },
     {
       label: "GPU Usage",
-      value: "--",
+      value:
+        systemMetrics?.gpuUsagePercent != null
+          ? systemMetrics.gpuUsagePercent.toFixed(0)
+          : "--",
       unit: "%",
-      detail: "Telemetry pending",
+      detail:
+        systemMetrics?.gpuMemoryUsedGb != null &&
+        systemMetrics.gpuMemoryTotalGb != null
+          ? `${systemMetrics.gpuMemoryUsedGb.toFixed(1)} / ${systemMetrics.gpuMemoryTotalGb.toFixed(1)} GB VRAM${
+              systemMetrics.gpuTemperatureC != null
+                ? ` · ${systemMetrics.gpuTemperatureC.toFixed(0)}°C`
+                : ""
+            }`
+          : "NVIDIA telemetry unavailable",
       icon: "▧",
-      percentage: 0,
+      percentage: systemMetrics?.gpuUsagePercent ?? 0,
     },
     {
       label: "Memory",
@@ -132,11 +152,18 @@ function App() {
     },
     {
       label: "Storage",
-      value: "--",
+      value:
+        systemMetrics?.storageUsagePercent != null
+          ? systemMetrics.storageUsagePercent.toFixed(0)
+          : "--",
       unit: "%",
-      detail: "Telemetry pending",
+      detail:
+        systemMetrics?.storageUsedGb != null &&
+        systemMetrics.storageTotalGb != null
+          ? `${systemMetrics.storageUsedGb.toFixed(1)} / ${systemMetrics.storageTotalGb.toFixed(1)} GB used on /`
+          : "Storage telemetry unavailable",
       icon: "▣",
-      percentage: 0,
+      percentage: systemMetrics?.storageUsagePercent ?? 0,
     },
   ];
 
@@ -450,6 +477,9 @@ function App() {
             </article>
           </section>
 
+
+        </div>
+
           <footer className="dashboard-footer">
             <span>
               <span className="footer-dot" />
@@ -458,7 +488,6 @@ function App() {
 
             <span>Developed by Minato</span>
           </footer>
-        </div>
       </main>
     </div>
   );

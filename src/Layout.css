@@ -204,3 +204,161 @@
     color: var(--text-secondary);
     font-weight: 500;
 }
+
+/* ==========================================================
+   Fixed desktop frame
+   Sidebar, topbar and footer stay stationary.
+   Only dashboard-content scrolls.
+   ========================================================== */
+
+.app {
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Main area becomes a fixed vertical layout. */
+
+.main-content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+
+    width: 0;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
+}
+
+/* Fixed topbar */
+
+.topbar {
+    position: relative;
+    z-index: 5;
+
+    flex: 0 0 auto;
+    width: 100%;
+}
+
+/* The dashboard body is the only main scrolling region. */
+
+.dashboard-content {
+    flex: 1 1 auto;
+
+    min-width: 0;
+    min-height: 0;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-muted) transparent;
+}
+
+.dashboard-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dashboard-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.dashboard-content::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    background: var(--text-muted);
+}
+
+/* Fixed footer, outside the scrolling body. */
+
+.dashboard-footer {
+    position: relative;
+    z-index: 5;
+
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 42px;
+
+    margin-top: 0;
+    padding: 10px 24px;
+
+    background: var(--background);
+}
+
+/* Developer credit centered relative to the entire footer. */
+
+.dashboard-footer>span:last-child {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* Keep the sidebar stationary and independently scrollable. */
+
+.sidebar {
+    flex: 0 0 245px;
+    width: 245px;
+    height: 100%;
+    min-height: 0;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    overscroll-behavior-y: contain;
+}
+
+.sidebar.collapsed {
+    flex-basis: 78px;
+    width: 78px;
+}
+
+/* ==========================================================
+   FIX: Dashboard body must occupy the entire available width
+   ========================================================== */
+
+.main-content {
+    width: auto !important;
+    flex: 1 1 0%;
+    min-width: 0;
+    align-items: stretch;
+}
+
+.dashboard-content {
+    display: block;
+
+    width: 100% !important;
+    max-width: none !important;
+
+    flex: 1 1 auto;
+    align-self: stretch;
+
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+
+    box-sizing: border-box;
+}
+
+/* Dashboard sections should stretch naturally. */
+
+.dashboard-content>.welcome-section,
+.dashboard-content>.section-header,
+.dashboard-content>.metrics-grid,
+.dashboard-content>.lower-grid {
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+}
+
+/* Preserve the fixed footer across the entire app width. */
+
+.dashboard-footer {
+    width: 100%;
+    box-sizing: border-box;
+}

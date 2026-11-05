@@ -120,3 +120,17 @@
     justify-content: center;
     gap: 0;
 }
+
+/* Keep the developer credit precisely centered in the footer. */
+
+.dashboard-footer {
+    position: relative;
+}
+
+.dashboard-footer>span:last-child {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    text-align: center;
+}
