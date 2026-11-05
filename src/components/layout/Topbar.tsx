@@ -16,6 +16,18 @@ export const Topbar: React.FC<TopbarProps> = ({
   return (
     <header className="topbar">
       <div className="page-heading">
+        <img
+          src="/icon.png"
+          alt="ZensaxPulse"
+          style={{
+            width: "20px",
+            height: "20px",
+            borderRadius: "6px",
+            objectFit: "cover",
+            display: "block",
+            boxShadow: "0 2px 5px rgba(0,0,0,0.25)",
+          }}
+        />
         <span className="breadcrumb">ZensaxPulse</span>
         <span className="breadcrumb-separator">/</span>
         <h1>{activePage}</h1>

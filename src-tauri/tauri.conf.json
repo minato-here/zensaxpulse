@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "zensaxpulse",
-        "width": 800,
-        "height": 600
+        "title": "ZensaxPulse",
+        "width": 1100,
+        "height": 760
       }
     ],
     "security": {
@@ -24,10 +24,15 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "System",
+    "shortDescription": "Native Linux System Intelligence Desktop Application",
+    "longDescription": "A premium, privacy-first, native Linux system monitoring and intelligence desktop application.",
     "icon": [
       "icons/32x32.png",
+      "icons/64x64.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
+      "icons/icon.png",
       "icons/icon.icns",
       "icons/icon.ico"
     ]

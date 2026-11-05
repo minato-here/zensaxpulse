@@ -24,11 +24,30 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
         fontSize: "13px",
       }}
     >
-      <Loader2
-        size={24}
-        className="spin"
-        style={{ color: "var(--accent)", animation: "spin 1s linear infinite" }}
-      />
+      <div style={{ position: "relative", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <img
+          src="/icon.png"
+          alt="ZensaxPulse"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "9px",
+            objectFit: "cover",
+            boxShadow: "0 0 12px rgba(34, 197, 94, 0.2)",
+          }}
+        />
+        <Loader2
+          size={44}
+          className="spin"
+          style={{
+            position: "absolute",
+            inset: 0,
+            color: "var(--accent)",
+            animation: "spin 1.4s linear infinite",
+            opacity: 0.8,
+          }}
+        />
+      </div>
       <span>{message}</span>
     </div>
   );

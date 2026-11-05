@@ -6,6 +6,7 @@ import {
   PauseCircle,
   Search,
   Info,
+  ShieldCheck,
 } from "lucide-react";
 import type { SystemInfo, ServicesReport, SystemdService } from "../types/telemetry";
 import { controlSystemService, executePowerAction } from "../services/telemetry";
@@ -550,6 +551,107 @@ export const SystemPage: React.FC<SystemPageProps> = ({
               </table>
             </div>
           )}
+        </article>
+      </section>
+
+      {/* About ZensaxPulse Application Card */}
+      <section style={{ marginTop: "24px", marginBottom: "8px" }}>
+        <article
+          className="panel"
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "14px",
+            padding: "24px",
+            boxShadow: "3px 3px 8px var(--shadow-dark), -3px -3px 8px var(--shadow-light)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "20px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
+              <img
+                src="/icon.png"
+                alt="ZensaxPulse Official Icon"
+                style={{
+                  width: "60px",
+                  height: "60px",
+                  borderRadius: "14px",
+                  objectFit: "cover",
+                  boxShadow: "0 0 16px rgba(34, 197, 94, 0.25), 0 4px 10px rgba(0, 0, 0, 0.4)",
+                  border: "1px solid rgba(34, 197, 94, 0.35)",
+                }}
+              />
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, letterSpacing: "-0.02em" }}>
+                    ZensaxPulse
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      padding: "2px 8px",
+                      borderRadius: "6px",
+                      background: "rgba(34, 197, 94, 0.15)",
+                      color: "var(--accent)",
+                      fontWeight: 700,
+                      border: "1px solid rgba(34, 197, 94, 0.3)",
+                    }}
+                  >
+                    v0.1.0
+                  </span>
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--text-secondary)" }}>
+                  Native Linux System Intelligence & Desktop Telemetry Suite
+                </p>
+                <p style={{ margin: "2px 0 0", fontSize: "11px", color: "var(--text-muted)" }}>
+                  Architected & Developed by <strong style={{ color: "var(--text-primary)" }}>Minato</strong>
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 14px",
+                  borderRadius: "8px",
+                  background: "var(--surface-raised)",
+                  border: "1px solid var(--border)",
+                  fontSize: "12px",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                <ShieldCheck size={16} style={{ color: "var(--accent)" }} />
+                <span>100% Offline & Air-Gapped Safe</span>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 14px",
+                  borderRadius: "8px",
+                  background: "var(--surface-raised)",
+                  border: "1px solid var(--border)",
+                  fontSize: "12px",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                <Info size={16} style={{ color: "var(--security-blue)" }} />
+                <span>Tauri 2 · Rust · React 19</span>
+              </div>
+            </div>
+          </div>
         </article>
       </section>
 

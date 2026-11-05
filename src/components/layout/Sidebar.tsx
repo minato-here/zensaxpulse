@@ -43,7 +43,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className={`sidebar ${isOpen ? "" : "collapsed"}`}>
       <div className="brand">
-        <div className="brand-logo">Z</div>
+        <div className="brand-logo" title="ZensaxPulse">
+          <img
+            src="/icon.png"
+            alt="ZensaxPulse"
+            className="brand-logo-img"
+          />
+        </div>
 
         {isOpen && (
           <div className="brand-name">
