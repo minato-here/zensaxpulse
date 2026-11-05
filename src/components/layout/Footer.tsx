@@ -8,7 +8,7 @@ export const Footer: React.FC = () => {
         ZensaxPulse
       </span>
 
-      <span>Developed by Minato</span>
+      <span>Developed by Minato  <br></br>Copyright (c) 2026 minato-here</span>
     </footer>
   );
 };
