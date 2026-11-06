@@ -46,11 +46,21 @@ export const MemoryPage: React.FC<MemoryPageProps> = ({
         </div>
 
         <div className="system-chip">
-          <span className="chip-icon">▤</span>
+          <img
+            src="/icon.png"
+            alt="ZensaxPulse"
+            style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "8px",
+              objectFit: "cover",
+              flexShrink: 0,
+            }}
+          />
           <div>
             <span className="chip-label">Physical RAM</span>
             <span className="chip-value">
-              {memory ? `${totalRam.toFixed(1)} GB DDR` : "Loading..."}
+              {memory ? `${totalRam.toFixed(1)} GB RAM` : "Loading..."}
             </span>
           </div>
         </div>

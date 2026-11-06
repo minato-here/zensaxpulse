@@ -104,7 +104,17 @@ export const SystemPage: React.FC<SystemPageProps> = ({
         </div>
 
         <div className="system-chip">
-          <span className="chip-icon">⚙</span>
+          <img
+            src="/icon.png"
+            alt="ZensaxPulse"
+            style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "8px",
+              objectFit: "cover",
+              flexShrink: 0,
+            }}
+          />
           <div>
             <span className="chip-label">Kernel</span>
             <span className="chip-value">{systemInfo?.kernelRelease ?? "Linux"}</span>
@@ -264,22 +274,22 @@ export const SystemPage: React.FC<SystemPageProps> = ({
 
             <div className="system-info-row">
               <span>Architecture</span>
-              <strong>{systemInfo?.architecture ?? "x86_64"}</strong>
+              <strong>{systemInfo?.architecture ?? "--"}</strong>
             </div>
 
             <div className="system-info-row">
               <span>Hostname</span>
-              <strong>{systemInfo?.hostname ?? "localhost"}</strong>
+              <strong>{systemInfo?.hostname ?? "--"}</strong>
             </div>
 
             <div className="system-info-row">
               <span>Desktop Environment</span>
-              <strong>{systemInfo?.desktopEnvironment ?? "KDE Plasma"}</strong>
+              <strong>{systemInfo?.desktopEnvironment ?? "Desktop Session"}</strong>
             </div>
 
             <div className="system-info-row">
               <span>Display Server</span>
-              <strong>{systemInfo?.displayServer ?? "Wayland"}</strong>
+              <strong>{systemInfo?.displayServer ?? "Desktop Session"}</strong>
             </div>
 
             <div className="system-info-row">
@@ -357,7 +367,9 @@ export const SystemPage: React.FC<SystemPageProps> = ({
               lineHeight: 1.6,
             }}
           >
-            Hardware extensions including AVX2, FMA, AES-NI, and virtualization acceleration (SVM/VMX) are active.
+            {systemInfo?.cpuFlagsSample && systemInfo.cpuFlagsSample.length > 0
+              ? `Hardware instruction extensions exposed: ${systemInfo.cpuFlagsSample.slice(0, 16).join(" ").toUpperCase()}`
+              : "Inspecting hardware instruction set features from /proc/cpuinfo."}
           </div>
         </article>
       </section>

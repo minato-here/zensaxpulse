@@ -70,6 +70,7 @@ pub struct TelemetryState {
     pub cached_iface_rates: HashMap<String, (f64, f64)>,
     pub cached_disk_read_rate: f64,
     pub cached_disk_write_rate: f64,
+    pub cached_battery_power: Option<f64>,
 }
 
 impl Default for TelemetryState {
@@ -89,6 +90,7 @@ impl Default for TelemetryState {
             cached_iface_rates: HashMap::new(),
             cached_disk_read_rate: 0.0,
             cached_disk_write_rate: 0.0,
+            cached_battery_power: None,
         }
     }
 }

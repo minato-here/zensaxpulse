@@ -91,7 +91,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           />
           <div>
             <span className="chip-label">Operating system</span>
-            <span className="chip-value">Arch Linux</span>
+            <span className="chip-value">{overview?.osName || "Linux"}</span>
           </div>
         </div>
       </section>
@@ -119,7 +119,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           label="CPU Usage"
           value={overview ? overview.cpuUsagePercent.toFixed(0) : "--"}
           unit="%"
-          detail={overview?.cpuModel ?? "AMD Ryzen 5 7535HS"}
+          detail={overview?.cpuModel || "Processor telemetry ready"}
           icon={<Cpu size={20} />}
           percentage={overview?.cpuUsagePercent ?? 0}
           color="var(--accent, #22c55e)"
@@ -397,27 +397,27 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           <div className="system-info-list">
             <div className="system-info-row">
               <span>Processor</span>
-              <strong>{overview?.cpuModel ?? "AMD Ryzen 5 7535HS"}</strong>
+              <strong>{overview?.cpuModel || "Standard Processor"}</strong>
             </div>
 
             <div className="system-info-row">
               <span>Graphics</span>
-              <strong>{overview?.gpuModel ?? "RTX 3050 Laptop / Radeon 680M"}</strong>
+              <strong>{overview?.gpuModel || "Graphics Display Adapter"}</strong>
             </div>
 
             <div className="system-info-row">
               <span>Architecture</span>
-              <strong>x86_64</strong>
+              <strong>{overview?.architecture || "x86_64"}</strong>
             </div>
 
             <div className="system-info-row">
               <span>Desktop</span>
-              <strong>KDE Plasma</strong>
+              <strong>{overview?.desktopEnvironment || "Desktop Session"}</strong>
             </div>
 
             <div className="system-info-row">
               <span>Display server</span>
-              <strong>Wayland</strong>
+              <strong>{overview?.displayServer || "Desktop Session"}</strong>
             </div>
 
             <div className="system-info-row">

@@ -268,6 +268,33 @@ fn get_ip_info() -> HashMap<String, (Option<String>, Option<String>, Option<Stri
         }
     }
 
+    // Fallback: if ip -j failed or produced nothing, parse standard "ip -o addr"
+    if map.is_empty() {
+        if let Ok(output) = Command::new("ip").args(["-o", "addr"]).output() {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for line in stdout.lines() {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() >= 4 {
+                        let ifname = parts[1];
+                        let family = parts[2];
+                        let ip_with_mask = parts[3];
+                        let ip = ip_with_mask.split('/').next().unwrap_or("").to_string();
+
+                        if !ip.is_empty() {
+                            let entry = map.entry(ifname.to_string()).or_insert((None, None, None));
+                            if family == "inet" && entry.0.is_none() {
+                                entry.0 = Some(ip);
+                            } else if family == "inet6" && entry.1.is_none() {
+                                entry.1 = Some(ip);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     map
 }
 

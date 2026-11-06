@@ -39,12 +39,29 @@ pub fn read_system_info() -> SystemInfo {
     let mut os_name = "Linux".to_string();
     let mut os_version = "".to_string();
 
-    if let Ok(contents) = fs::read_to_string("/etc/os-release") {
-        for line in contents.lines() {
-            if let Some(val) = line.strip_prefix("PRETTY_NAME=") {
-                os_name = val.trim_matches('"').to_string();
-            } else if let Some(val) = line.strip_prefix("VERSION_ID=") {
-                os_version = val.trim_matches('"').to_string();
+    let os_release_files = ["/etc/os-release", "/usr/lib/os-release"];
+    for file_path in &os_release_files {
+        if let Ok(contents) = fs::read_to_string(file_path) {
+            for line in contents.lines() {
+                let trimmed = line.trim();
+                if let Some(val) = trimmed.strip_prefix("PRETTY_NAME=") {
+                    let cleaned = val.trim_matches('"').trim_matches('\'').trim();
+                    if !cleaned.is_empty() {
+                        os_name = cleaned.to_string();
+                    }
+                } else if os_name == "Linux" && trimmed.starts_with("NAME=") {
+                    if let Some(val) = trimmed.strip_prefix("NAME=") {
+                        let cleaned = val.trim_matches('"').trim_matches('\'').trim();
+                        if !cleaned.is_empty() {
+                            os_name = cleaned.to_string();
+                        }
+                    }
+                } else if let Some(val) = trimmed.strip_prefix("VERSION_ID=") {
+                    os_version = val.trim_matches('"').trim_matches('\'').trim().to_string();
+                }
+            }
+            if os_name != "Linux" {
+                break;
             }
         }
     }
@@ -66,15 +83,16 @@ pub fn read_system_info() -> SystemInfo {
         .unwrap_or_else(|_| "localhost".to_string());
 
     let desktop_env = env::var("XDG_CURRENT_DESKTOP")
+        .or_else(|_| env::var("XDG_SESSION_DESKTOP"))
         .or_else(|_| env::var("DESKTOP_SESSION"))
-        .unwrap_or_else(|_| "KDE Plasma".to_string());
+        .unwrap_or_else(|_| "Desktop Session".to_string());
 
     let display_server = if env::var("WAYLAND_DISPLAY").is_ok() {
         "Wayland".to_string()
     } else if env::var("DISPLAY").is_ok() {
         "X11".to_string()
     } else {
-        "Wayland".to_string()
+        "Desktop Session".to_string()
     };
 
     let uptime_seconds = fs::read_to_string("/proc/uptime")

@@ -11,7 +11,7 @@ use std::{
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use telemetry::{cpu, gpu, memory, network, storage};
+use telemetry::{battery, cpu, gpu, memory, network, storage};
 
 fn current_timestamp_secs() -> u64 {
     SystemTime::now()
@@ -182,6 +182,15 @@ fn run_telemetry_collector(state: SharedTelemetryState) {
                         memory_used_mb: g.memory_used_mb.unwrap_or(0.0),
                         temperature: g.temperature_c.unwrap_or(0.0),
                     });
+                }
+            }
+
+            // 6. Battery Power Smoothing (every 1 second)
+            if let Some(w) = battery::read_instant_battery_watts() {
+                if w > 0.05 {
+                    let mut guard = state.lock().unwrap();
+                    let prev = guard.cached_battery_power.unwrap_or(w);
+                    guard.cached_battery_power = Some(0.08 * w + 0.92 * prev);
                 }
             }
 

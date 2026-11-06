@@ -45,7 +45,17 @@ export const StoragePage: React.FC<StoragePageProps> = ({
         </div>
 
         <div className="system-chip">
-          <span className="chip-icon">▣</span>
+          <img
+            src="/icon.png"
+            alt="ZensaxPulse"
+            style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "8px",
+              objectFit: "cover",
+              flexShrink: 0,
+            }}
+          />
           <div>
             <span className="chip-label">Root mount</span>
             <span className="chip-value">

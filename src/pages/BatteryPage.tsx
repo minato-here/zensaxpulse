@@ -21,14 +21,14 @@ interface BatteryPageProps {
   error: string | null;
 }
 
-function formatDuration(seconds: number | null): string {
+function formatStableDuration(seconds: number | null): string {
   if (seconds === null || seconds <= 0 || !isFinite(seconds)) return "--";
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   if (hours > 0) {
-    return `${hours}h ${minutes}m`;
+    return minutes > 0 ? `~${hours}h ${minutes}m` : `~${hours}h`;
   }
-  return `${minutes}m`;
+  return `~${minutes}m`;
 }
 
 export const BatteryPage: React.FC<BatteryPageProps> = ({
@@ -54,19 +54,19 @@ export const BatteryPage: React.FC<BatteryPageProps> = ({
   };
   const healthBadge = getHealthBadge(health);
 
-  // Time remaining label
+  // Time remaining label (stable calculation)
   const isCharging = battery?.status?.toLowerCase() === "charging";
-  const isFull = battery?.status?.toLowerCase() === "full" || (battery?.percentage ?? 0) >= 99;
-  const timeEstimate = isCharging
+  const isFull = battery?.status?.toLowerCase() === "full" || (battery?.percentage ?? 0) >= 98;
+  const timeEstimate = isFull && isAc
+    ? "Fully Charged"
+    : isCharging
     ? battery?.timeToFullSeconds
-      ? `${formatDuration(battery.timeToFullSeconds)} to full`
+      ? `${formatStableDuration(battery.timeToFullSeconds)} to full`
       : isFull
-      ? "Fully charged"
+      ? "Fully Charged"
       : "Calculating..."
     : battery?.timeToEmptySeconds
-    ? `${formatDuration(battery.timeToEmptySeconds)} remaining`
-    : isFull && isAc
-    ? "Plugged in (Full)"
+    ? `${formatStableDuration(battery.timeToEmptySeconds)} left`
     : isAc
     ? "AC Powered"
     : "Calculating...";
@@ -187,8 +187,8 @@ export const BatteryPage: React.FC<BatteryPageProps> = ({
           value={hasBattery ? timeEstimate : "Continuous"}
           detail={
             hasBattery
-              ? `Hardware cycles: ${battery?.cycleCount ?? "0"} total`
-              : "Air-gapped desktop system with AC power"
+              ? `Hardware cycles: ${battery?.cycleCount ?? "0"} · Smoothed load`
+              : "Continuous utility AC feed"
           }
           icon={<Activity size={20} />}
           color="var(--accent, #22c55e)"

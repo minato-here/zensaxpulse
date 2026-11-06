@@ -40,7 +40,17 @@ export const CpuPage: React.FC<CpuPageProps> = ({ cpu, loading, error }) => {
         </div>
 
         <div className="system-chip">
-          <span className="chip-icon">⌘</span>
+          <img
+            src="/icon.png"
+            alt="ZensaxPulse"
+            style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "8px",
+              objectFit: "cover",
+              flexShrink: 0,
+            }}
+          />
           <div>
             <span className="chip-label">Processor</span>
             <span className="chip-value">{cpu?.modelName ?? "Loading..."}</span>
@@ -56,7 +66,7 @@ export const CpuPage: React.FC<CpuPageProps> = ({ cpu, loading, error }) => {
           label="Total Utilization"
           value={cpu ? cpu.usagePercent.toFixed(1) : "--"}
           unit="%"
-          detail={`${cpu?.physicalCores ?? 6} Cores · ${cpu?.logicalThreads ?? 12} Threads`}
+          detail={cpu ? `${cpu.physicalCores} Cores · ${cpu.logicalThreads} Threads` : "CPU Topology"}
           icon={<Cpu size={20} />}
           percentage={cpu?.usagePercent ?? 0}
           color="var(--accent, #22c55e)"
@@ -68,7 +78,7 @@ export const CpuPage: React.FC<CpuPageProps> = ({ cpu, loading, error }) => {
           unit="MHz"
           detail={
             cpu?.maxFrequencyMhz
-              ? `Max: ${cpu.maxFrequencyMhz.toFixed(0)} MHz · Min: ${cpu.minFrequencyMhz?.toFixed(0) ?? 400} MHz`
+              ? `Max: ${cpu.maxFrequencyMhz.toFixed(0)} MHz${cpu.minFrequencyMhz ? ` · Min: ${cpu.minFrequencyMhz.toFixed(0)} MHz` : ""}`
               : "Dynamic governor"
           }
           icon={<Gauge size={20} />}

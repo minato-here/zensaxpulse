@@ -54,6 +54,12 @@ pub struct SystemOverview {
     pub gpu_model: String,
     pub cpu_temp_c: Option<f64>,
 
+    pub os_name: String,
+    pub kernel_release: String,
+    pub architecture: String,
+    pub desktop_environment: String,
+    pub display_server: String,
+
     pub network_history: Vec<NetworkHistoryPoint>,
     pub cpu_history: Vec<HistoryPoint>,
     pub memory_history: Vec<HistoryPoint>,
@@ -66,6 +72,7 @@ pub fn get_system_overview(state: State<'_, SharedTelemetryState>) -> Result<Sys
     let (cpu_model, _, _) = cpu::read_cpu_info();
     let (l1, l5, l15) = cpu::read_load_averages();
     let cpu_temp = cpu::read_cpu_temperature();
+    let sys_info = system::read_system_info();
     let mem = memory::read_memory_metrics().unwrap_or_else(|_| memory::MemoryMetrics {
         total_ram_gb: 0.0,
         used_ram_gb: 0.0,
@@ -165,6 +172,11 @@ pub fn get_system_overview(state: State<'_, SharedTelemetryState>) -> Result<Sys
         cpu_model,
         gpu_model,
         cpu_temp_c: cpu_temp,
+        os_name: sys_info.os_name,
+        kernel_release: sys_info.kernel_release,
+        architecture: sys_info.architecture,
+        desktop_environment: sys_info.desktop_environment,
+        display_server: sys_info.display_server,
         network_history: net_history,
         cpu_history,
         memory_history,
@@ -253,8 +265,9 @@ pub fn get_network_metrics(state: State<'_, SharedTelemetryState>) -> Result<Net
 }
 
 #[tauri::command]
-pub fn get_battery_metrics() -> Result<PowerSupplyMetrics, String> {
-    Ok(battery::read_power_supply_metrics())
+pub fn get_battery_metrics(state: State<'_, SharedTelemetryState>) -> Result<PowerSupplyMetrics, String> {
+    let smoothed = state.lock().unwrap().cached_battery_power;
+    Ok(battery::read_power_supply_metrics(smoothed))
 }
 
 #[tauri::command]

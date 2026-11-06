@@ -50,6 +50,12 @@ export interface SystemOverview {
   gpuModel: string;
   cpuTempC: number | null;
 
+  osName: string;
+  kernelRelease: string;
+  architecture: string;
+  desktopEnvironment: string;
+  displayServer: string;
+
   networkHistory: NetworkHistoryPoint[];
   cpuHistory: HistoryPoint[];
   memoryHistory: HistoryPoint[];

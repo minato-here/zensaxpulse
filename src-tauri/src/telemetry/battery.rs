@@ -56,7 +56,28 @@ fn read_sys_f64(path: &Path, file: &str) -> Option<f64> {
         .and_then(|s| s.trim().parse::<f64>().ok())
 }
 
-pub fn read_power_supply_metrics() -> PowerSupplyMetrics {
+pub fn read_instant_battery_watts() -> Option<f64> {
+    let base = Path::new("/sys/class/power_supply");
+    if let Ok(entries) = fs::read_dir(base) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            let ptype = read_sys_string(&path, "type").unwrap_or_else(|| "".to_string());
+            if ptype.eq_ignore_ascii_case("Battery") || name.starts_with("BAT") {
+                if let Some(uw) = read_sys_f64(&path, "power_now") {
+                    return Some(uw / 1_000_000.0);
+                }
+                if let Some(ua) = read_sys_f64(&path, "current_now") {
+                    let uv = read_sys_f64(&path, "voltage_now").unwrap_or(0.0);
+                    return Some((ua * uv) / 1_000_000_000_000.0);
+                }
+            }
+        }
+    }
+    None
+}
+
+pub fn read_power_supply_metrics(smoothed_power: Option<f64>) -> PowerSupplyMetrics {
     let base = Path::new("/sys/class/power_supply");
     let mut power_sources = Vec::new();
     let mut ac_connected = false;
@@ -137,16 +158,29 @@ pub fn read_power_supply_metrics() -> PowerSupplyMetrics {
                     };
                     let wear_percentage = (100.0 - health_percentage).max(0.0);
 
-                    // Time estimate
+                    // Time estimate with smoothing to avoid rapid fluctuations
                     let mut time_to_empty = None;
                     let mut time_to_full = None;
 
-                    if status.eq_ignore_ascii_case("Discharging") && power_watts > 0.5 {
-                        let hrs = energy_now_wh / power_watts;
-                        time_to_empty = Some((hrs * 3600.0) as u64);
-                    } else if status.eq_ignore_ascii_case("Charging") && power_watts > 0.5 && energy_full_wh > energy_now_wh {
-                        let hrs = (energy_full_wh - energy_now_wh) / power_watts;
-                        time_to_full = Some((hrs * 3600.0) as u64);
+                    let effective_power = smoothed_power.filter(|&p| p > 0.2).unwrap_or(power_watts);
+
+                    if status.eq_ignore_ascii_case("Discharging") && effective_power > 0.3 {
+                        let raw_seconds = (energy_now_wh / effective_power * 3600.0) as u64;
+                        // Quantize to 5-minute increments (300s) if > 30m, else 1-minute
+                        let quantized = if raw_seconds > 1800 {
+                            ((raw_seconds + 150) / 300) * 300
+                        } else {
+                            ((raw_seconds + 30) / 60) * 60
+                        };
+                        time_to_empty = Some(quantized);
+                    } else if status.eq_ignore_ascii_case("Charging") && effective_power > 0.3 && energy_full_wh > energy_now_wh {
+                        let raw_seconds = ((energy_full_wh - energy_now_wh) / effective_power * 3600.0) as u64;
+                        let quantized = if raw_seconds > 1800 {
+                            ((raw_seconds + 150) / 300) * 300
+                        } else {
+                            ((raw_seconds + 30) / 60) * 60
+                        };
+                        time_to_full = Some(quantized);
                     }
 
                     // Optional battery temperature
@@ -197,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_power_supply_metrics_does_not_panic() {
-        let metrics = read_power_supply_metrics();
+        let metrics = read_power_supply_metrics(None);
         // Should execute cleanly on any environment
         assert!(!metrics.power_sources.is_empty() || !metrics.has_battery);
     }
